@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>JS Minesweeper</title>
+    <style>
+        body { background: #333; color: #fff; text-align: center; font-family: sans-serif; }
+        #board { 
+            display: grid; 
+            grid-template-columns: repeat(10, 30px); 
+            gap: 2px; 
+            justify-content: center; 
+            margin-top: 20px;
+        }
+        .cell {
+            width: 30px; height: 30px;
+            background: #bbb; border: 1px solid #999;
+            line-height: 30px; font-weight: bold; cursor: pointer;
+            color: #000;
+        }
+        .cell.open { background: #eee; cursor: default; }
+        .cell.mine { background: #f00; }
+        .cell.flag { background: #ff0; }
+        .info { margin: 20px; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <h1>MINE SWEEPER</h1>
+    <div class="info">左クリック: 開く / 右クリック: 旗</div>
+    <div id="board"></div>
+    <button onclick="initGame()" style="margin-top:20px; padding:10px 20px;">リセット</button>
+
+<script>
+const WIDTH = 10;
+const HEIGHT = 10;
+const MINES_COUNT = 15;
+let boardData = [];
+let gameOver = false;
+
+function initGame() {
+    gameOver = false;
+    boardData = [];
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+
+    // 1. データの初期化
+    for (let y = 0; y < HEIGHT; y++) {
+        boardData[y] = [];
+        for (let x = 0; x < WIDTH; x++) {
+            boardData[y][x] = { x, y, mine: false, open: false, flag: false, count: 0 };
+        }
+    }
+
+    // 2. 地雷をランダムに配置
+    let minesPlaced = 0;
+    while (minesPlaced < MINES_COUNT) {
+        let rx = Math.floor(Math.random() * WIDTH);
+        let ry = Math.floor(Math.random() * HEIGHT);
+        if (!boardData[ry][rx].mine) {
+            boardData[ry][rx].mine = true;
+            minesPlaced++;
+        }
+    }
+
+    // 3. 周囲の地雷数を計算
+    for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+            if (boardData[y][x].mine) continue;
+            let count = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    let ny = y + dy, nx = x + dx;
+                    if (ny >= 0 && ny < HEIGHT && nx >= 0 && nx < WIDTH) {
+                        if (boardData[ny][nx].mine) count++;
+                    }
+                }
+            }
+            boardData[y][x].count = count;
+        }
+    }
+
+    // 4. HTML要素の生成
+    for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = `cell-${x}-${y}`;
+            cell.addEventListener('click', () => openCell(x, y));
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                toggleFlag(x, y);
+            });
+            boardEl.appendChild(cell);
+        }
+    }
+}
+
+function openCell(x, y) {
+    if (gameOver) return;
+    const data = boardData[y][x];
+    if (data.open || data.flag) return;
+
+    data.open = true;
+    const el = document.getElementById(`cell-${x}-${y}`);
+    el.classList.add('open');
+
+    if (data.mine) {
+        el.classList.add('mine');
+        el.innerText = '💣';
+        alert('GAME OVER');
+        gameOver = true;
+        return;
+    }
+
+    if (data.count > 0) {
+        el.innerText = data.count;
+    } else {
+        // 周囲に地雷がない場合は再帰的に開く（マインスイーパーのキモ）
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                let ny = y + dy, nx = x + dx;
+                if (ny >= 0 && ny < HEIGHT && nx >= 0 && nx < WIDTH) {
+                    openCell(nx, ny);
+                }
+            }
+        }
+    }
+    checkWin();
+}
+
+function toggleFlag(x, y) {
+    if (gameOver) return;
+    const data = boardData[y][x];
+    if (data.open) return;
+    data.flag = !data.flag;
+    const el = document.getElementById(`cell-${x}-${y}`);
+    el.classList.toggle('flag');
+    el.innerText = data.flag ? '🚩' : '';
+}
+
+function checkWin() {
+    let unOpened = 0;
+    for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+            if (!boardData[y][x].open) unOpened++;
+        }
+    }
+    if (unOpened === MINES_COUNT) {
+        alert('CLEAR!');
+        gameOver = true;
+    }
+}
+
+initGame();
+</script>
+</body>
+</html>
